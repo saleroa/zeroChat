@@ -1,0 +1,79 @@
+
+#  bridge 模式中，可以通过 容器名 或者是 服务名 来充当 ip
+
+version: '3'
+
+services:
+
+  user-rpc:
+    image: user-rpc:latest
+    container_name: easy-chat-userRpc
+    ports:
+    - "9001:9001"
+    depends_on:
+    - etcd
+    - redis
+    - mysql
+    networks:
+      easy-chat:
+  
+  user-api:
+    image: user-api:latest
+    container_name: easy-chat-userApi
+    ports:
+    - "8001:8001"
+    depends_on:
+    - user-rpc
+    networks:
+      easy-chat:
+  
+
+  etcd:
+    image: bitnami/etcd:3.4.15
+    container_name: easy-chat-etcd
+    ports:
+      - "2379:2379"
+    environment:
+      - ETCD_ENABLE_V2=true
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+    volumes:
+      - ./components/etcd/data:/bitnami/etcd/data
+      - ./components/etcd/logs:/bitnami/etcd/logs
+    networks:
+      easy-chat:
+
+
+  redis:
+    image: redis:6.0
+    ports:
+      - 6379:6379
+    container_name: easy-chat-redis
+    volumes:
+      - ./components/redis/data:/data
+      - ./components/redis/config/redis.conf:/etc/redis/redis.conf
+    environment:
+      TZ: Asia/Shanghai
+    restart: always
+    networks:
+      easy-chat:
+    command: redis-server --requirepass root123456 --appendonly yes
+
+  mysql:
+    image: mysql:5.7
+    ports:
+      - 3306:3306
+    container_name: easy-chat-mysql
+    volumes:
+      - ./components/mysql/data:/var/lib/mysql
+      - /etc/localtime:/etc/localtime
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+    restart: always
+    networks:
+      easy-chat:
+
+networks:
+  easy-chat:
+    driver: bridge

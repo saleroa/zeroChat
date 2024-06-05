@@ -1,0 +1,13 @@
+Name: user
+Host: 0.0.0.0
+Port: 8001
+
+UserRpc:
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: user.rpc
+
+JwtAuth:
+  AccessSecret: imooc.com
+  AccessExpire: 8640000

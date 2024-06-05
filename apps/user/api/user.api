@@ -1,0 +1,69 @@
+syntax = "v1"
+
+type User {
+	Id       string `json:"id"`
+	Mobile   string `json:"mobile"`
+	Nickname string `json:"nickname"`
+	Sex      byte   `json:"sex"`
+	Avatar   string `json:"avatar"`
+}
+
+type (
+	RegisterReq {
+		Phone    string `json:"phone"`
+		Password string `json:"password"`
+		Nickname string `json:"nickname"`
+		Sex      byte   `json:"sex"`
+		Avatar   string `json:"avatar"`
+	}
+	RegisterResp {
+		Token  string `json:"token"`
+		Expire int64  `json:"expire"`
+	}
+)
+
+type (
+	LoginReq {
+		Phone    string `json:"phone"`
+		Password string `json:"password"`
+	}
+	LoginResp {
+		Token  string `json:"token"`
+		Expire int64  `json:"expire"`
+	}
+)
+
+type (
+	UserInfoReq  {}
+	UserInfoResp {
+		Info User `json:"info"`
+	}
+)
+
+// no need login
+@server (
+	prefix: v1/user
+	group:  user
+)
+service user {
+	@doc "用户注册"
+	@handler register
+	post /register (RegisterReq) returns (RegisterResp)
+
+	@doc "用户登入"
+	@handler login
+	post /login (LoginReq) returns (LoginResp)
+}
+
+//need login
+@server (
+	prefix: v1/user
+	group:  user
+	jwt:    JwtAuth
+)
+service user {
+	@doc "获取用户信息"
+	@handler detail
+	get /user (UserInfoReq) returns (UserInfoResp)
+}
+
