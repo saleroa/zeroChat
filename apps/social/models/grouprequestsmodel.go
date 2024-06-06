@@ -20,8 +20,8 @@ type (
 )
 
 // NewGroupRequestsModel returns a model for the database table.
-func NewGroupRequestsModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) GroupRequestsModel {
+func NewGroupRequestsModel(conn sqlx.SqlConn, c cache.CacheConf) GroupRequestsModel {
 	return &customGroupRequestsModel{
-		defaultGroupRequestsModel: newGroupRequestsModel(conn, c, opts...),
+		defaultGroupRequestsModel: newGroupRequestsModel(conn, c),
 	}
 }

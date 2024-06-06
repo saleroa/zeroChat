@@ -22,3 +22,4 @@ goctl rpc protoc apps/social/rpc/social.proto --go_out=./apps/social/rpc --go-gr
 goctl model mysql ddl -src="./sql/user.sql" -dir="./apps/user/models/" -c
 
 根据 api 生成 
+goctl api go -api apps/social/api/social.api -dir apps/social/api -style gozero
