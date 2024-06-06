@@ -5,6 +5,19 @@ version: '3'
 
 services:
 
+
+  social-rpc:
+    image: social-rpc:latest
+    container_name: easy-chat-socialRpc
+    ports:
+    - "9002:9002"
+    depends_on:
+    - etcd
+    - redis
+    - mysql
+    networks:
+      easy-chat:
+
   user-rpc:
     image: user-rpc:latest
     container_name: easy-chat-userRpc

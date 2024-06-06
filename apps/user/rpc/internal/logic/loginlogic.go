@@ -2,17 +2,17 @@ package logic
 
 import (
 	"context"
+	"zeroChat/pkg/xerr"
+
+	"github.com/pkg/errors"
 
 	"time"
-
 	"zeroChat/apps/user/models"
 	"zeroChat/apps/user/rpc/internal/svc"
 	"zeroChat/apps/user/rpc/user"
 	"zeroChat/pkg/ctxdata"
 	"zeroChat/pkg/encrypt"
-	"zeroChat/pkg/xerr"
 
-	"github.com/pkg/errors"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -38,23 +38,24 @@ func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic 
 func (l *LoginLogic) Login(in *user.LoginReq) (*user.LoginResp, error) {
 	// todo: add your logic here and delete this line
 
-	// 验证是否注册
+	// 1. 验证用户是否注册，根据手机号码验证
 	userEntity, err := l.svcCtx.UserModel.FindByPhone(l.ctx, in.Phone)
 	if err != nil {
 		if err == models.ErrNotFound {
 			return nil, errors.WithStack(ErrPhoneNotRegister)
 		}
-		return nil, errors.Wrapf(xerr.NewDBErr(), "find user by phone err %v, req %v", err, in.Phone)
+		return nil, errors.Wrapf(xerr.NewDBErr(), "find user by phone err %v , req %v", err, in.Phone)
 	}
 
-	// 验证密码
+	// 密码验证
 	if !encrypt.ValidatePasswordHash(in.Password, userEntity.Password.String) {
 		return nil, errors.WithStack(ErrUserPwdError)
 	}
 
-	// 生成 token
+	// 生成token
 	now := time.Now().Unix()
-	token, err := ctxdata.GetJwtToken(l.svcCtx.Config.Jwt.AccessSecret, now, l.svcCtx.Config.Jwt.AccessExpire, userEntity.Id)
+	token, err := ctxdata.GetJwtToken(l.svcCtx.Config.Jwt.AccessSecret, now, l.svcCtx.Config.Jwt.AccessExpire,
+		userEntity.Id)
 	if err != nil {
 		return nil, errors.Wrapf(xerr.NewDBErr(), "ctxdata get jwt token err %v", err)
 	}

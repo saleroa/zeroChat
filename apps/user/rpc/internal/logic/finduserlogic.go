@@ -8,6 +8,7 @@ import (
 	"zeroChat/apps/user/rpc/user"
 
 	"github.com/jinzhu/copier"
+
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -28,8 +29,10 @@ func NewFindUserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FindUser
 func (l *FindUserLogic) FindUser(in *user.FindUserReq) (*user.FindUserResp, error) {
 	// todo: add your logic here and delete this line
 
-	var userEntitys []*models.Users
-	var err error
+	var (
+		userEntitys []*models.Users
+		err         error
+	)
 
 	if in.Phone != "" {
 		userEntity, err := l.svcCtx.UserModel.FindByPhone(l.ctx, in.Phone)
@@ -46,10 +49,10 @@ func (l *FindUserLogic) FindUser(in *user.FindUserReq) (*user.FindUserResp, erro
 		return nil, err
 	}
 
-	var res []*user.UserEntity
-	copier.Copy(&res, &userEntitys)
+	var resp []*user.UserEntity
+	copier.Copy(&resp, &userEntitys)
 
 	return &user.FindUserResp{
-		User: res,
+		User: resp,
 	}, nil
 }

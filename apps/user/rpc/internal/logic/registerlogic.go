@@ -5,19 +5,19 @@ import (
 	"database/sql"
 	"errors"
 	"time"
-
 	"zeroChat/apps/user/models"
-	"zeroChat/apps/user/rpc/internal/svc"
-	"zeroChat/apps/user/rpc/user"
 	"zeroChat/pkg/ctxdata"
 	"zeroChat/pkg/encrypt"
 	"zeroChat/pkg/wuid"
+
+	"zeroChat/apps/user/rpc/internal/svc"
+	"zeroChat/apps/user/rpc/user"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
 var (
-	ErrPhoneIsRegister = errors.New("phone number already registered")
+	ErrPhoneIsRegister = errors.New("手机号已经注册过")
 )
 
 type RegisterLogic struct {
@@ -37,15 +37,17 @@ func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Register
 func (l *RegisterLogic) Register(in *user.RegisterReq) (*user.RegisterResp, error) {
 	// todo: add your logic here and delete this line
 
-	// 验证用户是否注册，验证手机号
+	// 1. 验证用户是否注册，根据手机号码验证
 	userEntity, err := l.svcCtx.UserModel.FindByPhone(l.ctx, in.Phone)
 	if err != nil && err != models.ErrNotFound {
 		return nil, err
 	}
+
 	if userEntity != nil {
 		return nil, ErrPhoneIsRegister
 	}
-	// 定义用户信息
+
+	// 定义用户数据
 	userEntity = &models.Users{
 		Id:       wuid.GenUid(l.svcCtx.Config.Mysql.DataSource),
 		Avatar:   in.Avatar,
@@ -56,27 +58,27 @@ func (l *RegisterLogic) Register(in *user.RegisterReq) (*user.RegisterResp, erro
 			Valid: true,
 		},
 	}
-	// 密码长度校验
+
 	if len(in.Password) > 0 {
-		genPass, err := encrypt.GenPasswordHash([]byte(in.Password))
+		genPassword, err := encrypt.GenPasswordHash([]byte(in.Password))
 		if err != nil {
 			return nil, err
 		}
 		userEntity.Password = sql.NullString{
-			String: string(genPass),
+			String: string(genPassword),
 			Valid:  true,
 		}
 	}
 
-	// 插入用户
 	_, err = l.svcCtx.UserModel.Insert(l.ctx, userEntity)
 	if err != nil {
 		return nil, err
 	}
 
-	// 生成 token
+	// 生成token
 	now := time.Now().Unix()
-	token, err := ctxdata.GetJwtToken(l.svcCtx.Config.Jwt.AccessSecret, now, l.svcCtx.Config.Jwt.AccessExpire, userEntity.Id)
+	token, err := ctxdata.GetJwtToken(l.svcCtx.Config.Jwt.AccessSecret, now, l.svcCtx.Config.Jwt.AccessExpire,
+		userEntity.Id)
 	if err != nil {
 		return nil, err
 	}

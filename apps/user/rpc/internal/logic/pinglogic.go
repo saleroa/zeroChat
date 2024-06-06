@@ -2,7 +2,6 @@ package logic
 
 import (
 	"context"
-
 	"zeroChat/apps/user/rpc/internal/svc"
 	"zeroChat/apps/user/rpc/user"
 
@@ -27,6 +26,6 @@ func (l *PingLogic) Ping(in *user.Request) (*user.Response, error) {
 	// todo: add your logic here and delete this line
 
 	return &user.Response{
-		Pong: "hello " + in.Ping,
+		Pong: "hello" + in.Ping,
 	}, nil
 }
