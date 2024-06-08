@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"time"
 	"zeroChat/apps/im/ws/internal/config"
 	"zeroChat/apps/im/ws/internal/handler"
 	"zeroChat/apps/im/ws/internal/svc"
@@ -26,7 +27,9 @@ func main() {
 
 	ctx := svc.NewServiceContext(c)
 	srv := websocket.NewServer(c.ListenOn,
-		websocket.WithServerAuthentication(handler.NewJwtAuth(ctx)))
+		websocket.WithServerAuthentication(handler.NewJwtAuth(ctx)),
+		websocket.WithServerMaxConnectionIdle(10*time.Second),
+	)
 
 	defer srv.Stop()
 

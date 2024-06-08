@@ -1,7 +1,5 @@
 package websocket
 
-import "github.com/gorilla/websocket"
-
 // 路由
 
 type Route struct {
@@ -9,4 +7,4 @@ type Route struct {
 	Handler HandlerFunc
 }
 
-type HandlerFunc func(srv *Server, conn *websocket.Conn, msg *Message)
+type HandlerFunc func(srv *Server, conn *Conn, msg *Message)
