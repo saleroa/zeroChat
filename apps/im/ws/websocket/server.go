@@ -19,17 +19,22 @@ type Server struct {
 	authentication Authentication
 	routes         map[string]HandlerFunc
 	addr           string
+	patten         string
 	upgrader       websocket.Upgrader
 	logx.Logger
 }
 
-func NewServer(addr string) *Server {
+func NewServer(addr string, opts ...ServerOptions) *Server {
+
+	opt := newServerOption(opts...)
+
 	return &Server{
 		routes:         make(map[string]HandlerFunc),
 		addr:           addr,
+		patten:         opt.patten,
 		upgrader:       websocket.Upgrader{},
 		Logger:         logx.WithContext(context.Background()),
-		authentication: new(authentication),
+		authentication: opt.Authentication,
 		connToUser:     make(map[*websocket.Conn]string),
 		userToConn:     make(map[string]*websocket.Conn),
 	}
@@ -49,6 +54,14 @@ func (s *Server) ServerWs(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.Errorf("upgrade err %v", err)
 
+	}
+
+	// auth 认证不通过
+	if !s.authentication.Auth(w, r) {
+		// write message 是 conn 的方法，写到某个连接里
+		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprint("不具备访问权限")))
+		conn.Close()
+		return
 	}
 
 	// 连接对象获取请求
@@ -94,7 +107,7 @@ func (s *Server) AddRouters(rs []Route) {
 }
 
 func (s *Server) Start() {
-	http.HandleFunc("/ws", s.ServerWs)
+	http.HandleFunc(s.patten, s.ServerWs)
 	s.Info(http.ListenAndServe(s.addr, nil))
 }
 
