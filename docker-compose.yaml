@@ -5,42 +5,6 @@ version: '3'
 
 services:
 
-
-  social-rpc:
-    image: social-rpc:latest
-    container_name: easy-chat-socialRpc
-    ports:
-    - "9002:9002"
-    depends_on:
-    - etcd
-    - redis
-    - mysql
-    networks:
-      easy-chat:
-
-  user-rpc:
-    image: user-rpc:latest
-    container_name: easy-chat-userRpc
-    ports:
-    - "9001:9001"
-    depends_on:
-    - etcd
-    - redis
-    - mysql
-    networks:
-      easy-chat:
-  
-  user-api:
-    image: user-api:latest
-    container_name: easy-chat-userApi
-    ports:
-    - "8001:8001"
-    depends_on:
-    - user-rpc
-    networks:
-      easy-chat:
-  
-
   etcd:
     image: bitnami/etcd:3.4.15
     container_name: easy-chat-etcd
@@ -87,6 +51,52 @@ services:
     networks:
       easy-chat:
 
-networks:
-  easy-chat:
-    driver: bridge
+  social-rpc:
+    image: social-rpc:latest
+    container_name: easy-chat-socialRpc
+    ports:
+    - "9002:9002"
+    depends_on:
+    - etcd
+    - redis
+    - mysql
+    networks:
+      easy-chat:
+
+  social-api:
+    image: social-api:latest
+    container_name: easy-chat-socialApi
+    ports:
+    - "8002:8002"
+    depends_on:
+    - social-rpc
+    - user-rpc
+    networks:
+      easy-chat:
+
+  user-rpc:
+    image: user-rpc:latest
+    container_name: easy-chat-userRpc
+    ports:
+    - "9001:9001"
+    depends_on:
+    - etcd
+    - redis
+    - mysql
+    networks:
+      easy-chat:
+  
+  user-api:
+    image: user-api:latest
+    container_name: easy-chat-userApi
+    ports:
+    - "8001:8001"
+    depends_on:
+    - user-rpc
+    networks:
+      easy-chat:
+  
+  
+networks: 
+    easy-chat:
+      driver: bridge

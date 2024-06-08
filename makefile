@@ -8,11 +8,9 @@
 
 run: server compose-start
 
-stop: compose-stop rm-components rm-image
+stop: rm-image compose-stop  rm-components 
 
 
-
- 
 compose-start:
 	docker-compose up -d
 
@@ -23,12 +21,17 @@ rm-image:
 	$(shell docker images | grep "rpc\|api" | awk '{print$3}' | xargs -r docker rmi)
 
 rm-components:
-	rm -r ./components/mysql
+	rm -r ./components/mysql ./components/etcd  ./components/redis
+
+
 
 
 # server part 
 
-server: user-server 
+server: social-server  user-server 
+
+social-server: social-rpc social-api
+
 
 user-server: user-rpc user-api
 
@@ -38,6 +41,23 @@ user-rpc:
 
 user-api:
 	@make -f deploy/makefile/user_api.mk build
+
+social-rpc:
+    # 执行 build 目标，构建二进制文件
+	@make -f deploy/makefile/social_rpc.mk build
+
+social-api:
+	@make -f deploy/makefile/social_api.mk build
+
+
+
+
+
+
+
+
+
+
 
 
 
