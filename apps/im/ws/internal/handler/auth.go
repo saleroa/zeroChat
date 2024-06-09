@@ -6,7 +6,7 @@ import (
 	"zeroChat/apps/im/ws/internal/svc"
 	"zeroChat/pkg/ctxdata"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest/token"
 )
@@ -26,6 +26,9 @@ func NewJwtAuth(svc *svc.ServiceContext) *JwtAuth {
 }
 
 func (j *JwtAuth) Auth(w http.ResponseWriter, r *http.Request) bool {
+	if token := r.Header.Get("sec-websocket-protocol"); token != "" {
+		r.Header.Set("Authorization", token)
+	}
 	tok, err := j.parser.ParseToken(r, j.svc.Config.JwtAuth.AccessSecret, "")
 	if err != nil {
 		j.Errorf("parse token err %v ", err)

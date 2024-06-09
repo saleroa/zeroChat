@@ -6,16 +6,25 @@ type ServerOptions func(opt *serverOption)
 
 type serverOption struct {
 	Authentication
-	patten string
+
+	ack        AckType
+	ackTimeout time.Duration // ack 超时时间
+
+	patten   string
+	discover Discover
 
 	maxConnectionIdle time.Duration
+
+	concurrency int
 }
 
-func newServerOption(opts ...ServerOptions) serverOption {
+func newServerOptions(opts ...ServerOptions) serverOption {
 	o := serverOption{
 		Authentication:    new(authentication),
 		maxConnectionIdle: defaultMaxConnectionIdle,
+		ackTimeout:        defaultAckTimeout,
 		patten:            "/ws",
+		concurrency:       defaultConcurrency,
 	}
 
 	for _, opt := range opts {
@@ -24,25 +33,33 @@ func newServerOption(opts ...ServerOptions) serverOption {
 	return o
 }
 
-// 设置 auth
 func WithServerAuthentication(auth Authentication) ServerOptions {
 	return func(opt *serverOption) {
 		opt.Authentication = auth
 	}
 }
 
-// 设置 访问路径 patten
 func WithServerPatten(patten string) ServerOptions {
 	return func(opt *serverOption) {
 		opt.patten = patten
 	}
 }
 
-// 设置最大空闲时间
+func WithServerAck(ack AckType) ServerOptions {
+	return func(opt *serverOption) {
+		opt.ack = ack
+	}
+}
+
 func WithServerMaxConnectionIdle(maxConnectionIdle time.Duration) ServerOptions {
 	return func(opt *serverOption) {
 		if maxConnectionIdle > 0 {
 			opt.maxConnectionIdle = maxConnectionIdle
 		}
+	}
+}
+func WithServerDiscover(discover Discover) ServerOptions {
+	return func(opt *serverOption) {
+		opt.discover = discover
 	}
 }

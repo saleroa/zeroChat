@@ -1,0 +1,43 @@
+Name: task.mq
+ListenOn: 0.0.0.0:8004
+
+MsgChatTransfer:
+  Name: MsgChatTransfer
+  Brokers:
+    - localhost:9092
+  Group: kafka
+  Topic: msgChatTransfer
+  Offset: first
+  Consumers: 1
+
+MsgReadTransfer:
+  Name: MsgReadTransfer
+  Brokers:
+    - localhost:9092
+  Group: kafka
+  Topic: msgReadTransfer
+  Offset: first
+  Consumers: 1
+
+MsgReadHandler:
+  GroupMsgReadHandler: 1
+  GroupMsgReadRecordDelayTime: 2
+  GroupMsgReadRecordDelayCount: 2
+
+Redisx:
+  Host: localhost:6379
+  Type: node
+  Pass: root123456
+
+Mongo:
+  Url: "mongodb://root:root123456@localhost:27017"
+  Db: easy-chat
+
+SocialRpc:
+  Etcd:
+    Hosts:
+      - localhost:9002
+    Key: social.rpc
+
+Ws:
+  Host: 127.0.0.1:8003

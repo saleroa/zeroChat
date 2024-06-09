@@ -1,6 +1,21 @@
 Name: im.ws
 ListenOn: 0.0.0.0:8003
-
+redisx:
+  host: localhost:6379
+  pass: root123456
 JwtAuth:
   AccessSecret: imooc.com
-  AccessExpire: 8640000
+
+Mongo:
+  Url: "mongodb://root:root123456@localhost:27017"
+  Db: easy-chat
+
+MsgChatTransfer:
+  Topic: msgChatTransfer
+  Addrs:
+    - localhost:9092
+
+MsgReadTransfer:
+  Topic: msgReadTransfer
+  Addrs:
+    - localhost:9092

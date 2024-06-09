@@ -8,28 +8,49 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// 封装过后的连接对象
+// 特点之一
 type Conn struct {
 	idleMu sync.Mutex
+
+	Uid string
+
 	*websocket.Conn
 	s *Server
 
 	idle              time.Time
 	maxConnectionIdle time.Duration
 
+	messageMu      sync.Mutex
+	readMessage    []*Message
+	readMessageSeq map[string]*Message
+
+	message chan *Message
+
 	done chan struct{}
 }
 
 func NewConn(s *Server, w http.ResponseWriter, r *http.Request) *Conn {
-	c, err := s.upgrader.Upgrade(w, r, nil)
+	var respHeader http.Header
+	if protocol := r.Header.Get("Sec-Websocket-Protocol"); protocol != "" {
+		respHeader = http.Header{
+			"Sec-Websocket-Protocol": []string{protocol},
+		}
+	}
+	c, err := s.upgrader.Upgrade(w, r, respHeader)
 	if err != nil {
 		s.Errorf("upgrade err %v", err)
 		return nil
 	}
+
 	conn := &Conn{
 		Conn:              c,
 		s:                 s,
 		idle:              time.Now(),
 		maxConnectionIdle: s.opt.maxConnectionIdle,
+		readMessage:       make([]*Message, 0, 2),
+		readMessageSeq:    make(map[string]*Message, 2),
+		message:           make(chan *Message, 1),
 		done:              make(chan struct{}),
 	}
 
@@ -37,24 +58,38 @@ func NewConn(s *Server, w http.ResponseWriter, r *http.Request) *Conn {
 	return conn
 }
 
-func (c *Conn) ReadMessage() (messageType int, p []byte, err error) {
-	messageType, p, err = c.Conn.ReadMessage()
+func (c *Conn) appendMsgMq(msg *Message) {
+	c.messageMu.Lock()
+	defer c.messageMu.Unlock()
 
-	c.idleMu.Lock()
-	defer c.idleMu.Unlock()
-	c.idle = time.Time{}
-	return
+	// 读队列中
+	if m, ok := c.readMessageSeq[msg.Id]; ok {
+		// 已经有消息的记录，该消息已经有ack的确认
+		if len(c.readMessage) == 0 {
+			// 队列中没有该消息
+			return
+		}
+
+		// msg.AckSeq > m.AckSeq
+		if m.AckSeq >= msg.AckSeq {
+			// 没有进行ack的确认, 重复
+			return
+		}
+
+		c.readMessageSeq[msg.Id] = msg
+		return
+	}
+	// 还没有进行ack的确认, 避免客户端重复发送多余的ack消息
+	if msg.FrameType == FrameAck {
+		return
+	}
+
+	c.readMessage = append(c.readMessage, msg)
+	c.readMessageSeq[msg.Id] = msg
+
 }
 
-func (c *Conn) WriteMessage(messageType int, data []byte) error {
-	c.idleMu.Lock()
-	defer c.idleMu.Unlock()
-	// 方法是并不安全,所以加锁
-	err := c.Conn.WriteMessage(messageType, data)
-	c.idle = time.Now()
-	return err
-}
-
+// 心跳检测机制
 func (c *Conn) keepalive() {
 	idleTimer := time.NewTimer(c.maxConnectionIdle)
 	defer func() {
@@ -84,6 +119,26 @@ func (c *Conn) keepalive() {
 			return
 		}
 	}
+}
+
+func (c *Conn) ReadMessage() (messageType int, p []byte, err error) {
+	messageType, p, err = c.Conn.ReadMessage()
+
+	c.idleMu.Lock()
+	defer c.idleMu.Unlock()
+	// 读取消息的时候将idle设置为0
+	c.idle = time.Time{}
+	return
+}
+
+func (c *Conn) WriteMessage(messageType int, data []byte) error {
+	c.idleMu.Lock()
+	defer c.idleMu.Unlock()
+	// 方法是并发不安全，所以枷锁
+	err := c.Conn.WriteMessage(messageType, data)
+	// 已经读取完消息，将 idle 设置为 now
+	c.idle = time.Now()
+	return err
 }
 
 func (c *Conn) Close() error {
