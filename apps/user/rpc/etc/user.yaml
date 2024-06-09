@@ -6,10 +6,15 @@ Etcd:
   Key: user.rpc
 
 Mysql:
-  DataSource: root:root123456@tcp(mysql:3306)/easychat?charset=utf8mb4
+  DataSource: root:root123456@tcp(localhost:3306)/easychat?charset=utf8mb4
   
+Redisx:
+  - Host: localhost:6379
+    Type: node
+    Pass: root123456
+
 Cache:
-  - Host: redis:6379
+  - Host: localhost:6379
     Type: node
     Pass: root123456
 
