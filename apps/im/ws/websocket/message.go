@@ -25,14 +25,16 @@ const (
 // msg , id, seq
 type Message struct {
 	FrameType    `json:"frameType"`
-	Id           string      `json:"id"`
-	TranspondUid string      `json:"transpondUid"`
-	AckSeq       int         `json:"ackSeq"`
-	ackTime      time.Time   `json:"ackTime"`
-	errCount     int         `json:"errCount"`
-	Method       string      `json:"method"`
-	FormId       string      `json:"formId"`
-	Data         interface{} `json:"data"` // map[string]interface{}
+	Id           string `json:"id"`
+	TranspondUid string `json:"transpondUid"`
+	AckSeq       int    `json:"ackSeq"`
+	// 发送 ack 的时间
+	ackTime time.Time `json:"ackTime"`
+	// ack 失败的次数
+	errCount int         `json:"errCount"`
+	Method   string      `json:"method"`
+	FormId   string      `json:"formId"`
+	Data     interface{} `json:"data"` // map[string]interface{}
 }
 
 func NewMessage(formId string, data interface{}) *Message {

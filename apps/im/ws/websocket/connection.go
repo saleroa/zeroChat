@@ -18,16 +18,21 @@ type Conn struct {
 	*websocket.Conn
 	s *Server
 
-	idle              time.Time
-	maxConnectionIdle time.Duration
+	idle time.Time
 
-	messageMu      sync.Mutex
-	readMessage    []*Message
+	// ## ack 机制
+	messageMu sync.Mutex
+	// 接收消息处理队列，采用数组存储可保障数据的顺序
+	readMessage []*Message
+	// 记录ack机制中的消息处理结果与进展
 	readMessageSeq map[string]*Message
-
+	// 消息通道，在ack验证完成后将消息投递与writeHandler处理
 	message chan *Message
 
-	done chan struct{}
+	// ## 心跳检测机制
+	// 最大心跳检测时间
+	maxConnectionIdle time.Duration
+	done              chan struct{}
 }
 
 func NewConn(s *Server, w http.ResponseWriter, r *http.Request) *Conn {
@@ -50,27 +55,30 @@ func NewConn(s *Server, w http.ResponseWriter, r *http.Request) *Conn {
 		maxConnectionIdle: s.opt.maxConnectionIdle,
 		readMessage:       make([]*Message, 0, 2),
 		readMessageSeq:    make(map[string]*Message, 2),
-		message:           make(chan *Message, 1),
-		done:              make(chan struct{}),
+
+		message: make(chan *Message, 1), // 减少阻塞，保证顺序
+		done:    make(chan struct{}),
 	}
 
 	go conn.keepalive()
 	return conn
 }
 
+// 将需要 ack 的消息添加到队列中
+// 关于 ack 机制，去看看 ack 实现逻辑图
 func (c *Conn) appendMsgMq(msg *Message) {
 	c.messageMu.Lock()
 	defer c.messageMu.Unlock()
+	// 只有seq 和 msg 同时存在，并且 最新seq 大于 之前 seq 才有效
 
-	// 读队列中
+	// 已经有消息的记录，该消息已经有ack的确认
 	if m, ok := c.readMessageSeq[msg.Id]; ok {
-		// 已经有消息的记录，该消息已经有ack的确认
 		if len(c.readMessage) == 0 {
 			// 队列中没有该消息
 			return
 		}
 
-		// msg.AckSeq > m.AckSeq
+		// msg.AckSeq > m.AckSeq，最新的序号一定要大于之前的序号
 		if m.AckSeq >= msg.AckSeq {
 			// 没有进行ack的确认, 重复
 			return
@@ -79,7 +87,9 @@ func (c *Conn) appendMsgMq(msg *Message) {
 		c.readMessageSeq[msg.Id] = msg
 		return
 	}
-	// 还没有进行ack的确认, 避免客户端重复发送多余的ack消息
+
+	// 没有进行 ack 认证，就发送了 ack
+	// 避免客户端重复发送多余的ack消息
 	if msg.FrameType == FrameAck {
 		return
 	}

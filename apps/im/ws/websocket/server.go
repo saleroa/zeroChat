@@ -84,7 +84,7 @@ func NewServer(addr string, opts ...ServerOptions) *Server {
 	return s
 }
 
-// ws 路由的函数
+// ws 请求的入口函数
 func (s *Server) ServerWs(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -106,7 +106,7 @@ func (s *Server) ServerWs(w http.ResponseWriter, r *http.Request) {
 	// 记录连接
 	s.addConn(conn, r)
 
-	// 处理连接
+	// 处理连接，主要逻辑部分
 	go s.handlerConn(conn)
 }
 
@@ -141,16 +141,19 @@ func (s *Server) handlerConn(conn *Conn) {
 			continue
 		}
 
+		// 回复一个 ack 后再进行消息处理
 		// 依据消息进行处理
 		if s.isAck(&message) {
 			s.Infof("conn message read ack msg %v", message)
 			conn.appendMsgMq(&message)
 		} else {
+			// message 是直接发送到连接的
 			conn.message <- &message
 		}
 	}
 }
 
+// 判断是否启动ack
 func (s *Server) isAck(message *Message) bool {
 	if message == nil {
 		return s.opt.ack != NoAck
@@ -158,9 +161,41 @@ func (s *Server) isAck(message *Message) bool {
 	return s.opt.ack != NoAck && message.FrameType != FrameNoAck && message.FrameType != FrameTranspond
 }
 
+// 任务的处理
+func (s *Server) handlerWrite(conn *Conn) {
+	for {
+		// 判断连接是否关闭
+		select {
+		case <-conn.done:
+			// 连接关闭
+			return
+		case message := <-conn.message:
+			switch message.FrameType {
+			case FramePing:
+				s.Send(&Message{FrameType: FramePing}, conn)
+			case FrameData:
+				// 根据请求的method分发路由并执行
+				if handler, ok := s.routes[message.Method]; ok {
+					handler(s, conn, message)
+				} else {
+					s.Send(&Message{FrameType: FrameData, Data: fmt.Sprintf("不存在执行的方法 %v 请检查", message.Method)}, conn)
+				}
+			}
+
+			// ack 消息的清理
+			if s.isAck(message) {
+				conn.messageMu.Lock()
+				delete(conn.readMessageSeq, message.Id)
+				conn.messageMu.Unlock()
+			}
+		}
+	}
+}
+
 // 读取消息的ack
 func (s *Server) readAck(conn *Conn) {
 	for {
+		// 判断连接是否关闭
 		select {
 		case <-conn.done:
 			s.Infof("close message ack uid %v ", conn.Uid)
@@ -177,11 +212,13 @@ func (s *Server) readAck(conn *Conn) {
 			continue
 		}
 
-		// 读取第一条
+		// 桉顺序，永远读取第一条
 		message := conn.readMessage[0]
 
 		// 判断ack的方式
 		switch s.opt.ack {
+
+		// 只 ack 一次
 		case OnlyAck:
 			// 直接给客户端回复
 			s.Send(&Message{
@@ -195,6 +232,8 @@ func (s *Server) readAck(conn *Conn) {
 			conn.messageMu.Unlock()
 
 			conn.message <- message
+
+			// 严格 ack 模式
 		case RigorAck:
 			// 先回
 			if message.AckSeq == 0 {
@@ -228,8 +267,8 @@ func (s *Server) readAck(conn *Conn) {
 
 			// 2. 客户端没有确认，考虑是否超过了ack的确认时间
 			val := s.opt.ackTimeout - time.Since(message.ackTime)
+			//2.2 超过结束确认
 			if !message.ackTime.IsZero() && val <= 0 {
-				//		2.2 超过结束确认
 				delete(conn.readMessageSeq, message.Id)
 				conn.readMessage = conn.readMessage[1:]
 				conn.messageMu.Unlock()
@@ -248,35 +287,7 @@ func (s *Server) readAck(conn *Conn) {
 	}
 }
 
-// 任务的处理
-func (s *Server) handlerWrite(conn *Conn) {
-	for {
-		select {
-		case <-conn.done:
-			// 连接关闭
-			return
-		case message := <-conn.message:
-			switch message.FrameType {
-			case FramePing:
-				s.Send(&Message{FrameType: FramePing}, conn)
-			case FrameData:
-				// 根据请求的method分发路由并执行
-				if handler, ok := s.routes[message.Method]; ok {
-					handler(s, conn, message)
-				} else {
-					s.Send(&Message{FrameType: FrameData, Data: fmt.Sprintf("不存在执行的方法 %v 请检查", message.Method)}, conn)
-					//conn.WriteMessage(&Message{}, []byte(fmt.Sprintf("不存在执行的方法 %v 请检查", message.Method)))
-				}
-			}
-
-			if s.isAck(message) {
-				conn.messageMu.Lock()
-				delete(conn.readMessageSeq, message.Id)
-				conn.messageMu.Unlock()
-			}
-		}
-	}
-}
+// server basic functions
 
 func (s *Server) addConn(conn *Conn, req *http.Request) {
 	uid := s.authentication.UserId(req)

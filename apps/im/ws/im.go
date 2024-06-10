@@ -62,7 +62,7 @@ func Run(c config.Config) {
 	}
 	ctx := svc.NewServiceContext(c)
 	// 设置服务认证的token
-	token, err := ctxdata.GetJwtToken(c.JwtAuth.AccessSecret, time.Now().Unix(), 3153600000, fmt.Sprintf("ws:%s", time.Now().Unix()))
+	token, err := ctxdata.GetJwtToken(c.JwtAuth.AccessSecret, time.Now().Unix(), 3153600000, fmt.Sprintf("ws:%d", time.Now().Unix()))
 	if err != nil {
 		panic(err)
 	}

@@ -1,0 +1,24 @@
+Name: im
+Host: 0.0.0.0
+Port: 8882
+
+ImRpc:
+  Etcd:
+    Hosts:
+      - localhost:2379
+    Key: im.rpc
+
+UserRpc:
+  Etcd:
+    Hosts:
+      - localhost:2379
+    Key: user.rpc
+
+SocialRpc:
+  Etcd:
+    Hosts:
+      - localhost:2379
+    Key: social.rpc
+
+JwtAuth:
+  AccessSecret: imooc.com

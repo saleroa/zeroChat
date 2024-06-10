@@ -1,0 +1,10 @@
+Name: im.rpc
+ListenOn: 0.0.0.0:10002
+Etcd:
+  Hosts:
+  - localhost:2379
+  Key: im.rpc
+
+Mongo:
+  Url: "mongodb://root:root123456@localhost:27017"
+  Db: easy-chat
