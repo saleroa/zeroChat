@@ -192,100 +192,221 @@ func (s *Server) handlerWrite(conn *Conn) {
 	}
 }
 
-// 读取消息的ack
 func (s *Server) readAck(conn *Conn) {
+
+	send := func(msg *Message, conn *Conn) error {
+		err := s.Send(msg, conn)
+		if err == nil {
+			return nil
+		}
+
+		s.Errorf("message ack OnlyAck send err %v message %v", err, msg)
+		conn.readMessage[0].errCount++
+		conn.messageMu.Unlock()
+
+		tempDelay := time.Duration(200*conn.readMessage[0].errCount) * time.Microsecond
+		if max := 1 * time.Second; tempDelay > max {
+			tempDelay = max
+		}
+
+		time.Sleep(tempDelay)
+		return err
+	}
+
 	for {
-		// 判断连接是否关闭
 		select {
 		case <-conn.done:
-			s.Infof("close message ack uid %v ", conn.Uid)
+			// 关闭了连接
+			s.Infof("close message ack uid %v", conn.Uid)
 			return
 		default:
 		}
 
-		// 从队列中读取新的消息
 		conn.messageMu.Lock()
 		if len(conn.readMessage) == 0 {
 			conn.messageMu.Unlock()
-			// 增加睡眠
+			// 没有消息可以睡眠100 毫秒 -- 目的是让程序缓一缓
 			time.Sleep(100 * time.Microsecond)
 			continue
 		}
 
-		// 桉顺序，永远读取第一条
+		// 取出队列中的第一个数据
 		message := conn.readMessage[0]
+		if message.errCount > s.opt.sendErrCount {
+			s.Infof("conn send fail, message %v, ackType %v, maxSendErrCount %v", message, s.opt.ack.ToString(), s.opt.sendErrCount)
+			conn.messageMu.Unlock()
+			// todo：因为发送消息多次错误，而选择放弃消息
+			delete(conn.readMessageSeq, message.Id)
+			conn.readMessage = conn.readMessage[1:]
+			continue
+		}
 
-		// 判断ack的方式
+		// 根据ack的确认策略选择合适的处理方式
 		switch s.opt.ack {
-
-		// 只 ack 一次
 		case OnlyAck:
-			// 直接给客户端回复
-			s.Send(&Message{
+			if err := send(&Message{
 				FrameType: FrameAck,
-				Id:        message.Id,
 				AckSeq:    message.AckSeq + 1,
-			}, conn)
-			// 进行业务处理
-			// 把消息从队列中移除
+				Id:        message.Id,
+			}, conn); err != nil {
+				continue
+			}
+			// 只回答, 向客户端发送ack
 			conn.readMessage = conn.readMessage[1:]
 			conn.messageMu.Unlock()
-
 			conn.message <- message
-
-			// 严格 ack 模式
+			s.Infof("message ack OnlyAck send success mid %v", message.Id)
 		case RigorAck:
-			// 先回
 			if message.AckSeq == 0 {
-				// 还未确认
+				// 还未发送过确认信息
 				conn.readMessage[0].AckSeq++
 				conn.readMessage[0].ackTime = time.Now()
-				s.Send(&Message{
+				if err := send(&Message{
 					FrameType: FrameAck,
-					Id:        message.Id,
 					AckSeq:    message.AckSeq,
-				}, conn)
-				s.Infof("message ack RigorAck send mid %v, seq %v , time%v", message.Id, message.AckSeq,
-					message.ackTime)
+					Id:        message.Id,
+				}, conn); err != nil {
+					continue
+				}
+
 				conn.messageMu.Unlock()
+				s.Infof("message ack RigorAck send mid %v, seq %v, time %v", message.Id, message.AckSeq, message.ackTime.Unix())
 				continue
 			}
 
-			// 再验证
-
-			// 1. 客户端返回结果，再一次确认
-			// 得到客户端的序号
+			// 已经发送过序号了，需要等待客户端返回确认
 			msgSeq := conn.readMessageSeq[message.Id]
 			if msgSeq.AckSeq > message.AckSeq {
-				// 确认
+				// 客户端确认成功,可以处理业务了
 				conn.readMessage = conn.readMessage[1:]
 				conn.messageMu.Unlock()
 				conn.message <- message
-				s.Infof("message ack RigorAck success mid %v", message.Id)
+				s.Infof("message ack RigorAck success mid %v ", message.Id)
 				continue
 			}
 
-			// 2. 客户端没有确认，考虑是否超过了ack的确认时间
+			// 很显然没有处理成功，先看看有没有超时
 			val := s.opt.ackTimeout - time.Since(message.ackTime)
-			//2.2 超过结束确认
+
 			if !message.ackTime.IsZero() && val <= 0 {
+				// todo: 超时了，可以选择断开与客户端的连接,但实际具体细节处理仍然还需自己结合业务完善，此处选择放弃该消息
+				s.Errorf("message ack RigorAck fail mid %v, time %v because timeout", message.Id, message.ackTime)
 				delete(conn.readMessageSeq, message.Id)
 				conn.readMessage = conn.readMessage[1:]
 				conn.messageMu.Unlock()
 				continue
 			}
-			//		2.1 未超过，重新发送
+
 			conn.messageMu.Unlock()
-			s.Send(&Message{
-				FrameType: FrameAck,
-				Id:        message.Id,
-				AckSeq:    message.AckSeq,
-			}, conn)
-			// 睡眠一定的时间
-			time.Sleep(3 * time.Second)
+			if val > 0 && val > 300*time.Microsecond {
+				if err := send(&Message{
+					FrameType: FrameAck,
+					AckSeq:    message.AckSeq,
+					Id:        message.Id,
+				}, conn); err != nil {
+					continue
+				}
+			}
+			// 没有超时，我们让程序等等
+			time.Sleep(300 * time.Microsecond)
 		}
 	}
 }
+
+// // 读取消息的ack
+// func (s *Server) readAck(conn *Conn) {
+// 	for {
+// 		// 判断连接是否关闭
+// 		select {
+// 		case <-conn.done:
+// 			s.Infof("close message ack uid %v ", conn.Uid)
+// 			return
+// 		default:
+// 		}
+
+// 		// 从队列中读取新的消息
+// 		conn.messageMu.Lock()
+// 		if len(conn.readMessage) == 0 {
+// 			conn.messageMu.Unlock()
+// 			// 增加睡眠
+// 			time.Sleep(100 * time.Microsecond)
+// 			continue
+// 		}
+
+// 		// 桉顺序，永远读取第一条
+// 		message := conn.readMessage[0]
+
+// 		// 判断ack的方式
+// 		switch s.opt.ack {
+
+// 		// 只 ack 一次
+// 		case OnlyAck:
+// 			// 直接给客户端回复
+// 			s.Send(&Message{
+// 				FrameType: FrameAck,
+// 				Id:        message.Id,
+// 				AckSeq:    message.AckSeq + 1,
+// 			}, conn)
+// 			// 进行业务处理
+// 			// 把消息从队列中移除
+// 			conn.readMessage = conn.readMessage[1:]
+// 			conn.messageMu.Unlock()
+
+// 			conn.message <- message
+
+// 			// 严格 ack 模式
+// 		case RigorAck:
+// 			// 先回
+// 			if message.AckSeq == 0 {
+// 				// 还未确认
+// 				conn.readMessage[0].AckSeq++
+// 				conn.readMessage[0].ackTime = time.Now()
+// 				s.Send(&Message{
+// 					FrameType: FrameAck,
+// 					Id:        message.Id,
+// 					AckSeq:    message.AckSeq,
+// 				}, conn)
+// 				s.Infof("message ack RigorAck send mid %v, seq %v , time%v", message.Id, message.AckSeq,
+// 					message.ackTime)
+// 				conn.messageMu.Unlock()
+// 				continue
+// 			}
+
+// 			// 再验证
+
+// 			// 1. 客户端返回结果，再一次确认
+// 			// 得到客户端的序号
+// 			msgSeq := conn.readMessageSeq[message.Id]
+// 			if msgSeq.AckSeq > message.AckSeq {
+// 				// 确认
+// 				conn.readMessage = conn.readMessage[1:]
+// 				conn.messageMu.Unlock()
+// 				conn.message <- message
+// 				s.Infof("message ack RigorAck success mid %v", message.Id)
+// 				continue
+// 			}
+
+// 			// 2. 客户端没有确认，考虑是否超过了ack的确认时间
+// 			val := s.opt.ackTimeout - time.Since(message.ackTime)
+// 			//2.2 超过结束确认
+// 			if !message.ackTime.IsZero() && val <= 0 {
+// 				delete(conn.readMessageSeq, message.Id)
+// 				conn.readMessage = conn.readMessage[1:]
+// 				conn.messageMu.Unlock()
+// 				continue
+// 			}
+// 			//		2.1 未超过，重新发送
+// 			conn.messageMu.Unlock()
+// 			s.Send(&Message{
+// 				FrameType: FrameAck,
+// 				Id:        message.Id,
+// 				AckSeq:    message.AckSeq,
+// 			}, conn)
+// 			// 睡眠一定的时间
+// 			time.Sleep(3 * time.Second)
+// 		}
+// 	}
+// }
 
 // server basic functions
 

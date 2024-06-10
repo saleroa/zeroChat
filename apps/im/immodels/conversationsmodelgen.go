@@ -76,6 +76,7 @@ func (m *defaultConversationsModel) Delete(ctx context.Context, id string) error
 	return err
 }
 
+// 根据用户 id 查询他的对应的的 conversation 
 func (m *defaultConversationsModel) FindByUserId(ctx context.Context, uid string) (*Conversations, error) {
 	var data Conversations
 

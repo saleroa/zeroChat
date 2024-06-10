@@ -79,6 +79,7 @@ func (m *MsgChatTransfer) addChatLog(ctx context.Context, msgId primitive.Object
 	if err != nil {
 		return err
 	}
-
+	// 修改唯一的 conversation ，新增消息
+	// 所有消息都会到这里，然后修改对应的 conversation
 	return m.svcCtx.ConversationModel.UpdateMsg(ctx, &chatLog)
 }

@@ -108,7 +108,7 @@ func (m *defaultChatLogModel) ListByMsgIds(ctx context.Context, msgIds []string)
 	}
 }
 
-// 查询聊天记录
+// 根据时间查找聊天记录，并且设置限量
 func (m *defaultChatLogModel) ListBySendTime(ctx context.Context, conversationId string, startSendTime, endSendTime, limit int64) ([]*ChatLog, error) {
 	var data []*ChatLog
 

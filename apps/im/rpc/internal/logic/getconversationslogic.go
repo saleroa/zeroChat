@@ -28,7 +28,7 @@ func NewGetConversationsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
-// 获取会话
+// 获取会话列表，上线的时候操作一次
 func (l *GetConversationsLogic) GetConversations(in *im.GetConversationsReq) (*im.GetConversationsResp, error) {
 	// todo: add your logic here and delete this line
 
@@ -48,6 +48,7 @@ func (l *GetConversationsLogic) GetConversations(in *im.GetConversationsReq) (*i
 	for _, conversation := range data.ConversationList {
 		ids = append(ids, conversation.ConversationId)
 	}
+	// 查询获取数据库中最新的 conversation 消息
 	conversations, err := l.svcCtx.ConversationModel.ListByConversationIds(l.ctx, ids)
 	if err != nil {
 		return nil, errors.Wrapf(xerr.NewDBErr(), "ConversationModel.ListByConversationIds err %v, req %v", err, ids)
@@ -60,12 +61,15 @@ func (l *GetConversationsLogic) GetConversations(in *im.GetConversationsReq) (*i
 		}
 		// 用户读取的消息量
 		total := res.ConversationList[conversation.ConversationId].Total
+		// 前者是 conversations 中，和 uid 绑定的诸多私有的 conversation 消息，落后
+		// 后者是来自数据库中最新的数据
 		if total < int32(conversation.Total) {
 			// 有新的消息
 			res.ConversationList[conversation.ConversationId].Total = int32(conversation.Total)
 			// 有多少是未读
 			res.ConversationList[conversation.ConversationId].ToRead = int32(conversation.Total) - total
 			// 更改当前会话为显示状态
+			// 删除会话后直接弹出
 			res.ConversationList[conversation.ConversationId].IsShow = true
 		}
 	}

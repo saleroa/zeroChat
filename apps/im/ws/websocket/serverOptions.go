@@ -7,8 +7,9 @@ type ServerOptions func(opt *serverOption)
 type serverOption struct {
 	Authentication
 
-	ack        AckType
-	ackTimeout time.Duration // ack 超时时间
+	ack          AckType
+	ackTimeout   time.Duration // ack 超时时间
+	sendErrCount int           // ack 出错最大次数
 
 	patten   string
 	discover Discover
@@ -25,6 +26,7 @@ func newServerOptions(opts ...ServerOptions) serverOption {
 		ackTimeout:        defaultAckTimeout,
 		patten:            "/ws",
 		concurrency:       defaultConcurrency,
+		sendErrCount:      defaultSendErrCount,
 	}
 
 	for _, opt := range opts {
@@ -56,6 +58,12 @@ func WithServerMaxConnectionIdle(maxConnectionIdle time.Duration) ServerOptions 
 		if maxConnectionIdle > 0 {
 			opt.maxConnectionIdle = maxConnectionIdle
 		}
+	}
+}
+
+func WithSendErrCount(sendErrCount int) ServerOptions {
+	return func(opt *serverOption) {
+		opt.sendErrCount = sendErrCount
 	}
 }
 func WithServerDiscover(discover Discover) ServerOptions {

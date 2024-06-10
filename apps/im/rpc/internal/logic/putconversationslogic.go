@@ -26,7 +26,7 @@ func NewPutConversationsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
-// 更新会话
+// 修改用户连接的 conversations，上线后每隔一段时间操作一次
 func (l *PutConversationsLogic) PutConversations(in *im.PutConversationsReq) (*im.PutConversationsResp, error) {
 	// todo: add your logic here and delete this line
 

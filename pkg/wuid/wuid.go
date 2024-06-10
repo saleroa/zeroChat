@@ -3,6 +3,8 @@ package wuid
 import (
 	"database/sql"
 	"fmt"
+	"sort"
+	"strconv"
 
 	"github.com/edwingeng/wuid/mysql/wuid"
 )
@@ -31,4 +33,17 @@ func GenUid(dsn string) string {
 	}
 
 	return fmt.Sprintf("%#016x", w.Next())
+}
+
+// 将两个 id 组合成新 id
+func CombineId(aid, bid string) string {
+	ids := []string{aid, bid}
+
+	sort.Slice(ids, func(i, j int) bool {
+		a, _ := strconv.ParseUint(ids[i], 0, 64)
+		b, _ := strconv.ParseUint(ids[j], 0, 64)
+		return a < b
+	})
+
+	return fmt.Sprintf("%s_%s", ids[0], ids[1])
 }

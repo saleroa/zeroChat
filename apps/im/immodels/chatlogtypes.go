@@ -9,6 +9,7 @@ import (
 
 var DefaultChatLogLimit int64 = 100
 
+// 储存聊天消息的 mongo
 type ChatLog struct {
 	ID primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 

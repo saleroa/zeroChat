@@ -26,11 +26,11 @@ func NewGetChatLogLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetCha
 	}
 }
 
-// 获取会话记录
+// 获取消息
 func (l *GetChatLogLogic) GetChatLog(in *im.GetChatLogReq) (*im.GetChatLogResp, error) {
 	// todo: add your logic here and delete this line
 
-	// 根据id
+	// 根据消息的 id
 	if in.MsgId != "" {
 		chatlog, err := l.svcCtx.ChatLogModel.FindOne(l.ctx, in.MsgId)
 		if err != nil {
@@ -51,7 +51,7 @@ func (l *GetChatLogLogic) GetChatLog(in *im.GetChatLogReq) (*im.GetChatLogResp, 
 			}},
 		}, nil
 	}
-
+	// 根据某个时间段查询某个会话的消息
 	data, err := l.svcCtx.ChatLogModel.ListBySendTime(l.ctx, in.ConversationId, in.StartSendTime, in.EndSendTime, in.Count)
 	if err != nil {
 		return nil, errors.Wrapf(xerr.NewDBErr(), "find chatLog list by SendTime err %v, req %v", err, in)
