@@ -1,32 +1,32 @@
-### 
-
-user-rpc 监听 9001 
-user-api 监听 8001
-
-social-rpc 9002
-social-apt 8002
-
-ws 8003
-mq 8004
-
-
-
-mysql 和 redis 密码  
-root123456
-
-根据 proto 生成 
-
-goctl rpc protoc apps/social/rpc/social.proto --go_out=./apps/social/rpc --go-grpc_out=./apps/social/rpc --zrpc_out=./apps/social/rpc
-
-根据 sql 生成
-
-goctl model mysql ddl -src="./sql/user.sql" -dir="./apps/user/models/" -c
-
-根据 api 生成 
-goctl api go -api apps/social/api/social.api -dir apps/social/api -style gozero
+f f f f f f### 
 
 
 
 ack 机制
 客户端向服务端的 ack
-ack 次数过多的报错暂停  done
+
+
+消息请求的入口 serverWs
+
+获取到 ws 发送的消息 > ack部分 > conn.message > handle write > chat route > kafka > 消费，记录数据 > push route >  真正的写到对方的连接中 write conn
+
+
+ack 部分
+
+第一次消息 > appendMsgMq  >  conn.readmsg  > readack  > 将 ack 写到具体 conn 连接中
+
+
+破案
+
+websocket 的 writemessage 是将消息写到客户端展示
+             readmessgae 是将请求发出的消息写出来
+
+
+
+封装websocket，实现了连接的心跳检测
+实现了消息成功接收的ack以及多种ack模式
+使用kafka对消息收发进行异步处理
+使用实现了消息的已读未读显示
+使用dockercompose进行部署，使用 makefile 进行管理
+
+客户端自动 ack 没有写

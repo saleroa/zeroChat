@@ -3,6 +3,7 @@ package group
 import (
 	"context"
 
+	"zeroChat/apps/im/rpc/imclient"
 	"zeroChat/apps/social/api/internal/svc"
 	"zeroChat/apps/social/api/internal/types"
 	"zeroChat/apps/social/rpc/socialclient"
@@ -32,7 +33,7 @@ func (l *CreateGroupLogic) CreateGroup(req *types.GroupCreateReq) (resp *types.G
 	uid := ctxdata.GetUId(l.ctx)
 
 	// 创建群
-	_, err = l.svcCtx.Social.GroupCreate(l.ctx, &socialclient.GroupCreateReq{
+	res, err := l.svcCtx.Social.GroupCreate(l.ctx, &socialclient.GroupCreateReq{
 		Name:       req.Name,
 		Icon:       req.Icon,
 		CreatorUid: uid,
@@ -40,6 +41,14 @@ func (l *CreateGroupLogic) CreateGroup(req *types.GroupCreateReq) (resp *types.G
 	if err != nil {
 		return nil, err
 	}
+	if res.Id == "" {
+		return nil, err
+	}
 
-	return
+	_, err = l.svcCtx.ImRpc.CreateGroupConversation(l.ctx, &imclient.CreateGroupConversationReq{
+		GroupId:  res.Id,
+		CreateId: uid,
+	})
+
+	return nil, err
 }

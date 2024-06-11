@@ -64,8 +64,9 @@ func NewConn(s *Server, w http.ResponseWriter, r *http.Request) *Conn {
 	return conn
 }
 
-// 将需要 ack 的消息添加到队列中
-// 关于 ack 机制，去看看 ack 实现逻辑图
+// 将需要 ack 的消息添加到队列
+// ack 机制模仿的 tcp 握手，这是第一次发送
+// 并且客户端的 ack 也是发向这里
 func (c *Conn) appendMsgMq(msg *Message) {
 	c.messageMu.Lock()
 	defer c.messageMu.Unlock()
@@ -94,6 +95,7 @@ func (c *Conn) appendMsgMq(msg *Message) {
 		return
 	}
 
+	// 这俩只有在这里写
 	c.readMessage = append(c.readMessage, msg)
 	c.readMessageSeq[msg.Id] = msg
 
@@ -160,3 +162,107 @@ func (c *Conn) Close() error {
 
 	return c.Conn.Close()
 }
+
+// // ack 机制中第三个 part, 接收到客户端的 ack 然后处理
+// func (s *Server) connAck(conn *Conn) {
+
+// 	for {
+// 		select {
+// 		case <-conn.done:
+// 			// 关闭了连接
+// 			s.Infof("close message ack uid %v", conn.Uid)
+// 			return
+// 		default:
+// 		}
+//         // 只有严格ack的时候才会用到服务端的 ack
+// 		if s.opt.ack == RigorAck {
+//            // 取出 websocket 中的 acktype 的消息
+
+// 		   // 检查是否超时，是否有效
+
+// 		   // 如果有效，返回 ack
+
+// 		}
+
+// 		// 取出队列中的第一个数据
+// 		message := conn.readMessage[0]
+// 		if message.errCount > s.opt.sendErrCount {
+// 			s.Infof("conn send fail, message %v, ackType %v, maxSendErrCount %v", message, s.opt.ack.ToString(), s.opt.sendErrCount)
+// 			conn.messageMu.Unlock()
+// 			// todo：因为发送消息多次错误，而选择放弃消息
+// 			delete(conn.readMessageSeq, message.Id)
+// 			conn.readMessage = conn.readMessage[1:]
+// 			continue
+// 		}
+
+// 		// 根据ack的确认策略选择合适的处理方式
+// 		switch s.opt.ack {
+// 		case OnlyAck:
+// 			if err := send(&Message{
+// 				FrameType: FrameAck,
+// 				AckSeq:    message.AckSeq + 1,
+// 				Id:        message.Id,
+// 			}, conn); err != nil {
+// 				continue
+// 			}
+// 			// 只回答, 向客户端发送ack
+// 			conn.readMessage = conn.readMessage[1:]
+// 			conn.messageMu.Unlock()
+// 			conn.message <- message
+// 			s.Infof("message ack OnlyAck send success mid %v", message.Id)
+// 		case RigorAck:
+// 			if message.AckSeq == 0 {
+// 				// 还未发送过确认信息
+// 				conn.readMessage[0].AckSeq++
+// 				conn.readMessage[0].ackTime = time.Now()
+// 				if err := send(&Message{
+// 					FrameType: FrameAck,
+// 					AckSeq:    message.AckSeq,
+// 					Id:        message.Id,
+// 				}, conn); err != nil {
+// 					continue
+// 				}
+
+// 				conn.messageMu.Unlock()
+// 				s.Infof("message ack RigorAck send mid %v, seq %v, time %v", message.Id, message.AckSeq, message.ackTime.Unix())
+// 				continue
+// 			}
+
+// 			// 已经发送过序号了，需要等待客户端返回确认
+// 			msgSeq := conn.readMessageSeq[message.Id]
+// 			if msgSeq.AckSeq > message.AckSeq {
+// 				// 客户端确认成功,可以处理业务了
+// 				conn.readMessage = conn.readMessage[1:]
+// 				conn.messageMu.Unlock()
+// 				conn.message <- message
+// 				s.Infof("message ack RigorAck success mid %v ", message.Id)
+// 				continue
+// 			}
+
+// 			// 很显然没有处理成功，先看看有没有超时
+// 			val := s.opt.ackTimeout - time.Since(message.ackTime)
+
+// 			if !message.ackTime.IsZero() && val <= 0 {
+// 				// todo: 超时了，可以选择断开与客户端的连接,但实际具体细节处理仍然还需自己结合业务完善，此处选择放弃该消息
+// 				s.Errorf("message ack RigorAck fail mid %v, time %v because timeout", message.Id, message.ackTime)
+// 				delete(conn.readMessageSeq, message.Id)
+// 				conn.readMessage = conn.readMessage[1:]
+// 				conn.messageMu.Unlock()
+// 				continue
+// 			}
+
+// 			conn.messageMu.Unlock()
+// 			if val > 0 && val > 300*time.Microsecond {
+// 				if err := send(&Message{
+// 					FrameType: FrameAck,
+// 					AckSeq:    message.AckSeq,
+// 					Id:        message.Id,
+// 				}, conn); err != nil {
+// 					continue
+// 				}
+// 			}
+// 			// 没有超时，我们让程序等等
+// 			time.Sleep(300 * time.Microsecond)
+// 		}
+// 	}
+// }

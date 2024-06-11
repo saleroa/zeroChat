@@ -11,12 +11,12 @@ type serverOption struct {
 	ackTimeout   time.Duration // ack 超时时间
 	sendErrCount int           // ack 出错最大次数
 
-	patten   string
+	patten   string // ws 请求的路径
 	discover Discover
 
-	maxConnectionIdle time.Duration
+	maxConnectionIdle time.Duration // 连接空闲的最大时间。用来心跳检测的
 
-	concurrency int
+	concurrency int // 并发的量级
 }
 
 func newServerOptions(opts ...ServerOptions) serverOption {

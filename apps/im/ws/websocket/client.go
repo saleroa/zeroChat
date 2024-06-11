@@ -8,6 +8,7 @@ import (
 )
 
 // kafka 中的 client，kafka 中消息发送的 client
+// 这里的消息是直接充当 client 发送的
 
 type Client interface {
 	Close() error
@@ -49,6 +50,7 @@ func (c *client) dail() (*websocket.Conn, error) {
 	return conn, err
 }
 
+// 这里发送的是 websocket 的请求
 func (c *client) Send(v any) error {
 	data, err := json.Marshal(v)
 	if err != nil {

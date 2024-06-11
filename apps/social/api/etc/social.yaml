@@ -14,5 +14,11 @@ UserRpc:
      - etcd:2379
     Key: user.rpc
 
+UserRpc:
+  Etcd:
+    Hosts:
+     - etcd:2379
+    Key: im.rpc
+
 JwtAuth:
   AccessSecret: imooc.com

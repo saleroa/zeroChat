@@ -11,6 +11,7 @@ type Config struct {
 	JwtAuth struct {
 		AccessSecret string
 	}
+	ImRpc zrpc.RpcClientConf
 
 	UserRpc   zrpc.RpcClientConf
 	SocialRpc zrpc.RpcClientConf

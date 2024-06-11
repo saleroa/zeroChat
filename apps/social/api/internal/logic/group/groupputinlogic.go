@@ -3,9 +3,11 @@ package group
 import (
 	"context"
 
+	"zeroChat/apps/im/rpc/imclient"
 	"zeroChat/apps/social/api/internal/svc"
 	"zeroChat/apps/social/api/internal/types"
 	"zeroChat/apps/social/rpc/socialclient"
+	"zeroChat/pkg/constants"
 	"zeroChat/pkg/ctxdata"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -31,12 +33,22 @@ func (l *GroupPutInLogic) GroupPutIn(req *types.GroupPutInRep) (resp *types.Grou
 
 	uid := ctxdata.GetUId(l.ctx)
 
-	_, err = l.svcCtx.Social.GroupPutin(l.ctx, &socialclient.GroupPutinReq{
+	res, err := l.svcCtx.Social.GroupPutin(l.ctx, &socialclient.GroupPutinReq{
 		GroupId:    req.GroupId,
 		ReqId:      uid,
 		ReqMsg:     req.ReqMsg,
 		ReqTime:    req.ReqTime,
 		JoinSource: int32(req.JoinSource),
 	})
-	return
+	if res.GroupId == "" {
+		return nil, err
+	}
+
+	_, err = l.svcCtx.ImRpc.SetUpUserConversation(l.ctx, &imclient.SetUpUserConversationReq{
+		SendId:   uid,
+		RecvId:   res.GroupId,
+		ChatType: int32(constants.GroupChatType),
+	})
+
+	return nil, err
 }

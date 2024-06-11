@@ -38,7 +38,7 @@ func (l *CreateGroupConversationLogic) CreateGroupConversation(in *im.CreateGrou
 	if err != immodels.ErrNotFound {
 		return nil, errors.Wrapf(xerr.NewDBErr(), "ConversationModel.FindOne err %v, req %v", err, in.GroupId)
 	}
-
+	// 如果不存在群会话，就插入新的
 	err = l.svcCtx.ConversationModel.Insert(l.ctx, &immodels.Conversation{
 		ConversationId: in.GroupId,
 		ChatType:       constants.GroupChatType,

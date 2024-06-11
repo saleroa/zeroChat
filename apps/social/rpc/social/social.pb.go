@@ -986,6 +986,8 @@ type GroupCreateResp struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+
+	Id string
 }
 
 func (x *GroupCreateResp) Reset() {
@@ -1332,6 +1334,7 @@ type GroupPutInHandleResp struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+	GroupId string
 }
 
 func (x *GroupPutInHandleResp) Reset() {
