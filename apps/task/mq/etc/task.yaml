@@ -19,9 +19,13 @@ MsgReadTransfer:
   Offset: first
   Consumers: 1
 
+# 群聊消息已读推送缓存的配置
 MsgReadHandler:
+  # 是否开启
   GroupMsgReadHandler: 1
-  GroupMsgReadRecordDelayTime: 2
+  # 缓存时间
+  GroupMsgReadRecordDelayTime: 60
+  # 缓存上限
   GroupMsgReadRecordDelayCount: 2
 
 Redisx:

@@ -23,6 +23,7 @@ func NewBaseMsgTransfer(svc *svc.ServiceContext) *baseMsgTransfer {
 	}
 }
 
+// 转发消息
 func (m *baseMsgTransfer) Transfer(ctx context.Context, data *ws.Push) error {
 	var err error
 	switch data.ChatType {
@@ -34,6 +35,7 @@ func (m *baseMsgTransfer) Transfer(ctx context.Context, data *ws.Push) error {
 	return err
 }
 
+// 私聊转发
 func (m *baseMsgTransfer) single(ctx context.Context, data *ws.Push) error {
 	return m.svcCtx.WsClient.Send(websocket.Message{
 		FrameType: websocket.FrameData,
@@ -43,6 +45,7 @@ func (m *baseMsgTransfer) single(ctx context.Context, data *ws.Push) error {
 	})
 }
 
+// 群聊转发
 func (m *baseMsgTransfer) group(ctx context.Context, data *ws.Push) error {
 	// 就要查询，群的用户
 	users, err := m.svcCtx.Social.GroupUsers(ctx, &socialclient.GroupUsersReq{

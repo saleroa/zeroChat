@@ -19,7 +19,7 @@ type (
 		RecvId         string `mapstructure:"recvId"`
 		SendTime       int64  `mapstructure:"sendTime"`
 	}
-	// 推送 kafka 消息的时候的消息格式
+	// 推送 kafka 已读消息的时候的消息格式
 	Push struct {
 		constants.ChatType `mapstructure:"chatType"`
 		constants.MType    `mapstructure:"mType"`
@@ -38,6 +38,7 @@ type (
 		Content string `mapstructure:"content"`
 	}
 
+	// 处理已读
 	MarkRead struct {
 		constants.ChatType `mapstructure:"chatType"`
 		RecvId             string   `mapstructure:"recvId"`

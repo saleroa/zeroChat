@@ -5,14 +5,16 @@ type Bitmap struct {
 	size int
 }
 
+// 手动实现 bitmap
+
 func NewBitmap(size int) *Bitmap {
 	if size == 0 {
 		size = 250
 	}
 	// [0,0,0,0,1,0,0,0] [0,0,0,0,0,0,0,0]
 	return &Bitmap{
-		bits: make([]byte, size),
-		size: size * 8,
+		bits: make([]byte, size), // 字节数
+		size: size * 8,           // byte 数
 	}
 }
 

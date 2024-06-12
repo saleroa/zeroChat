@@ -9,11 +9,13 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// 群聊消息已读的推送合并
+
 type groupMsgRead struct {
 	mu             sync.Mutex
 	conversationId string
-	push           *ws.Push
-	pushCh         chan *ws.Push
+	push           *ws.Push      // 记录推送的消息
+	pushCh         chan *ws.Push // 最终要推送的
 	count          int
 	// 上次推送时间
 	pushTime time.Time
@@ -32,17 +34,6 @@ func newGroupMsgRead(push *ws.Push, pushCh chan *ws.Push) *groupMsgRead {
 
 	go m.transfer()
 	return m
-}
-
-// 合并消息
-func (m *groupMsgRead) mergePush(push *ws.Push) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.count++
-	for msgId, read := range push.ReadRecords {
-		m.push.ReadRecords[msgId] = read
-	}
 }
 
 func (m *groupMsgRead) transfer() {
@@ -117,6 +108,19 @@ func (m *groupMsgRead) transfer() {
 	}
 }
 
+// 合并消息
+func (m *groupMsgRead) mergePush(push *ws.Push) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.count++
+	// 消息id 和 消息读取记录
+	for msgId, read := range push.ReadRecords {
+		m.push.ReadRecords[msgId] = read
+	}
+}
+
+// 判断是否为空消息
 func (m *groupMsgRead) IsIdle() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()

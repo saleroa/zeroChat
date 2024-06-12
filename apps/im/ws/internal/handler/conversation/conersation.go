@@ -49,6 +49,7 @@ func Chat(svc *svc.ServiceContext) websocket.HandlerFunc {
 	}
 }
 
+// 对消息已读未读的处理，route 函数
 func MarkRead(svc *svc.ServiceContext) websocket.HandlerFunc {
 	return func(srv *websocket.Server, conn *websocket.Conn, msg *websocket.Message) {
 		//  已读未读处理
