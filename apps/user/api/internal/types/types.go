@@ -9,6 +9,7 @@ type LoginReq struct {
 type LoginResp struct {
 	Token  string `json:"token"`
 	Expire int64  `json:"expire"`
+
 }
 
 type RegisterReq struct {

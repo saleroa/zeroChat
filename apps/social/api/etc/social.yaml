@@ -19,6 +19,9 @@ UserRpc:
     Hosts:
      - etcd:2379
     Key: im.rpc
+Redisx:
+  - Host: localhost:6379
+    Pass: root123456
 
 JwtAuth:
   AccessSecret: imooc.com

@@ -263,6 +263,9 @@ type LoginResp struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	
+	Id string
+
 	Token  string `protobuf:"bytes,1,opt,name=Token,proto3" json:"Token,omitempty"`
 	Expire int64  `protobuf:"varint,2,opt,name=expire,proto3" json:"expire,omitempty"`
 }

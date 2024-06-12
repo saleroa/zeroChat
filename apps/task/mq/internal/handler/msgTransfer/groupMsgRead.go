@@ -32,6 +32,7 @@ func newGroupMsgRead(push *ws.Push, pushCh chan *ws.Push) *groupMsgRead {
 		done:           make(chan struct{}),
 	}
 
+	// 这个位置挂一个 for 循环处理的，不会有问题吗
 	go m.transfer()
 	return m
 }
